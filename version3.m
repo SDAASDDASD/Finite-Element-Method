@@ -1,4 +1,4 @@
-clc;clear all;
+clc;clear
 load Ke4beam.mat
 Hc=1/3;Hf=1/3;Ec=6.9e10;Ef=Ec;v=0.3;G=Ec/2*(1+v);
 n=200;l=50/n;
@@ -17,3 +17,4 @@ K(4:6,1:3)=zeros(3,3);
 F(3*n+1,1)=-100;
 u=K\F;
 plot(u(1:3:3*n+1))
+max1=max(abs(u(1:3:3*n+1)));

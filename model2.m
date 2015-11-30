@@ -1,4 +1,4 @@
-clc;clear all;
+clc;clear
 load Ke4beam.mat
 subplot(2,2,1)
 Hc=1/3;Hf=1/3;Ef=6.9e10;Ec=Ef*10^(0);v=0.3;G=Ec/2*(1+v);b=1;
@@ -42,7 +42,7 @@ ylabel('Deflection / m');
 title('E_c = E_f')
 legend('FEM','CLT')
 
-clc;clear all;
+clc;clear
 load Ke4beam.mat
 subplot(2,2,2)
 Hc=1/3;Hf=1/3;Ef=6.9e10;Ec=Ef*10^(-1);v=0.3;G=Ec/2*(1+v);b=1;
@@ -86,7 +86,7 @@ ylabel('Deflection / m');
 title('E_c = E_f*10^{-1}')
 legend('FEM','CLT')
 
-clc;clear all;
+clc;clear
 load Ke4beam.mat
 subplot(2,2,3)
 Hc=1/3;Hf=1/3;Ef=6.9e10;Ec=Ef*10^(-2);v=0.3;G=Ec/2*(1+v);b=1;
@@ -130,7 +130,7 @@ ylabel('Deflection / m');
 title('E_c = E_f*10^{-2}')
 legend('FEM','CLT')
 
-clc;clear all;
+clc;clear
 load Ke4beam.mat
 subplot(2,2,4)
 Hc=1/3;Hf=1/3;Ef=6.9e10;Ec=Ef*10^(-3);v=0.3;G=Ec/2*(1+v);b=1;
