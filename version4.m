@@ -27,3 +27,4 @@ x=linspace(0,50,n+1);
 w=u(1:3:3*n+1);
 %plot(x,w,'b','linewidth',1.5)
 max1=max(abs(w));
+%test
