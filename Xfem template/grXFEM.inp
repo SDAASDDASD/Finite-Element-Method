@@ -1,0 +1,168 @@
+*Heading
+TEMPLATE FOR X-FEM WITH ABAQUS
+**
+** &&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&
+**  USER ELEMENT DEFINITION (CALLED U12, 12 DOF/NODE)
+** &&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&
+**
+*User element, nodes=4, type=U12, properties=2, iproperties=5, coordinates=2, variables=9000
+1,2,3,4,5,6,7,11,12,13,14,15
+** 
+** &&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&
+**  MESH DEFINITION
+** &&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&& 
+**
+** -- ALL NODES
+*Node, input=.\files\m0XY.prn
+** -- ONLY THE NON-ENRICHED ELEMENTS (STANDARD ELEMENTS)
+*Element, type=CPS4, input=.\files\TopNoX, elset=ELEMTOPNOX
+*Nset, nset=ELEMTOPNOX, elset=ELEMTOPNOX
+*Solid Section, elset=ELEMTOPNOX, material=Material-1
+1.,
+**
+** &&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&
+**  NSETS & ELSETS INCLUSION
+** &&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&& 
+**
+*include,input=.\files\m0sets.prn
+**
+** SETS OF NODES BELONGING TO ENRICHED ELEMENTS (SOME DOFs TO BE RESTRICTED)
+**
+*Nset, nset=NodeX2dof
+*include,input=.\files\SETNodeX2dof
+*Nset, nset=NodeX4dof
+*include,input=.\files\SETNodeX4dof
+*Nset, nset=NodeX10dof
+*include,input=.\files\SETNodeX10dof
+**
+** ------ Lo que sigue no hace falta para el artículo -----
+** Para la condición de simetría en X al enriquecimiento Heaviside
+**Nset, nset=RESTRGDL3
+**include,input=.\files\SETrestrgdl3
+**
+** &&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&
+**  USER ELEMENTS
+** &&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&
+**
+*Element, type=U12, input=.\files\TopX, elset=ELEMTOPXU12
+*Nset, nset=ELEMTOPXU12, elset=ELEMTOPXU12
+**
+** &&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&
+**  OVERLAY ELEMENTS (if desired)
+** &&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&
+**
+**Element, type=CPS4, input=.\files\TopXoverlay, elset=ElemTopXoverlay
+**Solid Section, elset=ElemTopXoverlay, material=MaterOverlay 
+
+**1. 
+**
+** &&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&
+**  MATERIALS DEFINITION
+** &&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&& 
+**
+*Material, name=Material-1
+*Elastic
+1e7, 0.333
+**
+*Material, name=MaterOverlay
+*Elastic
+1e-14, 0.333
+** (negligible stiffness)
+**
+**   USER DEFINED PROPERTIES FOR USER ELEMENTS
+**
+**   Key:
+**   1st Parameter: E (Young's modulus)  
+**   2nd Parameter: nu (Poisson coeff.)
+**   3rd Parameter: Plane Stress = 1; Plane Strain = 2
+**   4th Parameter: orderC(1) = Quadrature order for quadrilaterals (in each direction)
+**              NOTE: only for enriched elements (quadrilaterals) no subdivided
+**   5th Parameter: orderC(2) = Quadrature order for triangles (total points)
+**              NOTE: only for enriched elements subdivided into triangles
+**   6th Parameter: orderC(3) = Quadrature order for quadrilaterals (in each direction)
+**              NOTE: only for enriched elements subdivided into 2 quadrilaterals (elemX = type 4)
+**   7th Parameter: Dimension of the physical domain of the problem: 2=2D
+**
+*Uel property, elset=ELEMTOPXU12
+1.0e7, 0.333,1,5,7,2,2
+**
+** &&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&
+**  BOUNDARY CONDITIONS
+** &&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&& 
+**
+**  -- BC (RELATED TO THE PROBLEM)
+*Boundary
+_PickedSet6, ENCASTRE
+**
+**  -- BC (SPECIFIC OF X-FEM TO CONSTRAINT THE NON-USED EXTRA DOF)
+**
+*Boundary, OP=MOD
+NodeX2dof, 3, 15, 0.0
+NODeX4dof, 5, 15, 0.0
+NODeX10dof, 3, 4, 0.0
+** 
+**Boundary, OP=MOD
+**RESTRGDL3, 3, 3, 0.0
+**
+** &&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&
+**  SUPERFICIES PARA LA CARGA DE LA PROBETA
+** &&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&& 
+**
+** Definicion de superficie a partir del ELSET para aplicar carga distribuida 
+**
+**
+** &&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&
+**  LOAD STEPS
+** &&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&& 
+**
+** ¿Step , perturbation?     NO LO HAGO PERTURBATION. HABRÍA QUE EDITAR RUTINA ver pag 25.2.19-12
+**
+** STEP: Step-1
+** 
+*Step
+Step-1-: load application
+**  WE DON'T USE *Static. WE USE THE FOLLOWING TO USE DOFS 1-7 & 11-15
+*coupled temperature-displacement, steady state
+1., 1., 1e-05, 1.
+** 
+**
+** LOADS
+**
+** Distributed loads 
+*Dsload
+_PickedSurf7, P, -1.
+** 
+** &&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&
+**  OUTPUT FILES
+** &&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&& 
+** 
+**  OUTPUT FIELD TO .odb
+**
+*Output, field, op=NEW, frequency=1
+*Node Output
+U 
+*Element Output
+S, E
+**
+**  OUTPUT PRINT TO .dat
+** 'U' TO LIST DOFS 1-7 & 'NT' TO LIST TEMP. ASSOCIATED DOFS 11-...
+**
+*Node print, nset=ELEMTOPXU12,frequency=1
+U
+*Node print, nset=ELEMTOPXU12,frequency=1
+NT
+**
+**  OUTPUT WRITE TO  .fil
+**
+*Node file, nset=ELEMTOPNOX
+COORD,U 
+*El file, elset=ELEMTOPNOX, POSITION=INTEGRATION POINT 
+S,E,ENER,IVOL
+**
+**  -- TO WRITE USER DEFINED OUTPUT VARIABLES FOR POST-PROCESSING
+**  -- (INFORMATION AT GAUSS POINTS OF ENRICHED ELEMENTS)
+*El file, elset=ELEMTOPXU12
+SDV
+** 
+**
+*End Step
