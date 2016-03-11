@@ -138,15 +138,13 @@ fid = fopen('GGnodeX','w');
 fprintf(fid,'%d,%d,%g,%g\n',GGnodeX');
 fclose(fid);
 
-GGelemX = zeros(nelemX,10);
+GGelemX = zeros(nlemX,10);
 GGelemX(:,1) = TopX(:,1);
 for i =1 : size(TopX,1)
     if  (ismember(TopX(i,1),split_elem))
         GGelemX(i,2) = 4;
     elseif  (ismember(TopX(i,1),tip_elem))
-        GGelemX(i,2) = 40;
-        GGelemX(i,9) = 1;
-        GGelemX(i,10) = 2;
+        GGelemX(i,2) = 41;
     else
         GGelemX(i,2) = -1;
     end
@@ -162,9 +160,7 @@ for i =1 : size(TopX,1)
         GGelemX(i,(loop*2-1):(loop*2)) = pnt;
         loop = loop+1;
     end
-    end  
+    end
 end
 
-fid = fopen('GGelemX','w');
-fprintf(fid,'%d,%d,%d,%d,%g,%g,%g,%g,%d,%d\n',GGelemX');
-fclose(fid);
+GGelemX(TopX(tip_elem))

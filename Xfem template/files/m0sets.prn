@@ -1,8 +1,6 @@
-*Nset, nset=_PickedSet6, internal, instance=Part-1-1, generate
-  1,  13,   1
-*Elset, elset=_PickedSet6, internal, instance=Part-1-1, generate
+*Nset, nset=_PickedSet9, generate
   1,  12,   1
-*Elset, elset=__PickedSurf7_S3, internal, instance=Part-1-1, generate
- 277,  288,    1
-*Surface, type=ELEMENT, name=_PickedSurf7, internal
-__PickedSurf7_S3, S3
+*Elset, elset=_PickedSet9, generate
+  1,  11,   1
+*Elset, elset=__PickedSurf10_S3, generate
+ 243,  253,    1
