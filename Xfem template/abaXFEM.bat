@@ -1,2 +1,2 @@
-abaqus job=grXFEM user=UEL_XFEM interactive
+abaqus job=myXFEM user=UEL_XFEM interactive
 pause

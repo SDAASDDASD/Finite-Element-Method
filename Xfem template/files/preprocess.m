@@ -1,7 +1,7 @@
 clc
 clear all
 
-a = 0.45 ;                     % crack length
+a = 0.5 ;                     % crack length
 L = 1 ;
 D = 2 ;
 xCr   = [0 D/2; a D/2];
@@ -86,20 +86,6 @@ fid = fopen('TopXTypeX','w');
 fprintf(fid,'%d,%d,%d,%d,%d\n',TopXTypeX');
 fclose(fid);
 
-ncrack = 1;
-maxCP = 2;
-nelemX = size(TopX,1);
-nnodeX = size(split_nodes,1)+size(tip_nodes,1);
-fid = fopen('GGinfoX','w');
-fprintf(fid,'%d,%d,%d,%d',ncrack,maxCP,nelemX,nnodeX);
-fclose(fid);
-
-fid = fopen('GGXYC','w');
-fprintf(fid,'%d\n',maxCP);
-fprintf(fid,'%g,%g\n',x0,y0);
-fprintf(fid,'%g,%g\n',x1,y1);
-fclose(fid);
-
 
 SETNodeX2dof = [];
 SETNodeX4dof = [];
@@ -107,11 +93,11 @@ SETNodeX10dof = [];
 for i =1:size(TopX,1)
     strc = TopX(i,2:5);
     for j =1:size(strc,2)
-        if enrich_node(strc(j)) == 0
+        if enrich_node(strc(j),1) == 0
             SETNodeX2dof = union(SETNodeX2dof,strc(j));
-        elseif enrich_node(strc(j)) == 1
+        elseif enrich_node(strc(j),1) == 1
             SETNodeX4dof = union(SETNodeX4dof,strc(j));
-        elseif enrich_node(strc(j)) == 2
+        elseif enrich_node(strc(j),1) == 2
             SETNodeX10dof = union(SETNodeX10dof,strc(j));
         end
     end
@@ -127,6 +113,21 @@ fclose(fid);
 
 fid = fopen('SETNodeX10dof','w');
 fprintf(fid,'%d,%d,%d,%d,%d,%d,%d,%d\n',SETNodeX10dof');
+fclose(fid);
+
+
+ncrack = 1;
+maxCP = 2;
+nelemX = size(TopX,1);
+nnodeX = size(SETNodeX2dof,2)+size(SETNodeX4dof,2)+size(SETNodeX10dof,2);
+fid = fopen('GGinfoX','w');
+fprintf(fid,'%d,%d,%d,%d',ncrack,maxCP,nelemX,nnodeX);
+fclose(fid);
+
+fid = fopen('GGXYC','w');
+fprintf(fid,'%d\n',maxCP);
+fprintf(fid,'%g,%g\n',x0,y0);
+fprintf(fid,'%g,%g\n',x1,y1);
 fclose(fid);
 
 EnodeX  = union(SETNodeX2dof,union(SETNodeX4dof,SETNodeX10dof));
@@ -167,4 +168,10 @@ end
 
 fid = fopen('GGelemX','w');
 fprintf(fid,'%d,%d,%d,%d,%g,%g,%g,%g,%d,%d\n',GGelemX');
+fclose(fid);
+
+TopXoverlay = TopX;
+TopXoverlay(:,1) = TopX(:,1) +1000;
+fid = fopen('TopXoverlay','w');
+fprintf(fid,'%d,%d,%d,%d,%d\n',TopXoverlay');
 fclose(fid);

@@ -18,7 +18,7 @@ c
 c
 c      Important variables (list not exhaustive)
 c           JELEM  Current element number
-c	          AMATRX Element stiffness matrix (element contribution to the stiffness 
+c	        AMATRX Element stiffness matrix (element contribution to the stiffness 
 c                  matrix of the overall system of equations)
 c           RHS    Element residual force vector (element contribution to the right-hand-side 
 c                  vector of the overall system of equations)
@@ -29,12 +29,12 @@ c           PSS    1 - Plane stress
 c                  2 - Plane strain
 c           orderQ Vector stores the following quadrature orders:
 C
-c		        orderQ(1) = Quadrature order for quadrilaterals (in each direction)
+c		    orderQ(1) = Quadrature order for quadrilaterals (in each direction)
 c                   NOTE: only for non-subdivided enriched elements (quadrilaterals) 
 c           orderQ(2) = Quadrature order for triangles (total points)
 c                   NOTE: only for enriched elements subdivided into triangles 
 c           orderQ(3) = Quadrature order for quadrilaterals (in each direction)
-c             NOTE: only for enriched elements subdivided into 2 quadrilaterals (elemX = type 4)
+c                   NOTE: only for enriched elements subdivided into 2 quadrilaterals (elemX = type 4)
 
 c           dimens Dimension of the physical domain: 2=2D
 c                  Actually, it should suffice with the ABAQUS variable MCRD, but ABAQUS automatically
@@ -53,7 +53,7 @@ c           TypeXe Vector that stores the key in TypeX for the nodes of the curr
 c           ix     Vector that stores the node numbers of the current element (connectivity)
 c           Xe(8)	 X nodal coordinates of the current element
 c                  (it is duplicated to ease the counting from the 4th to the 1st node)
-c		        Ye(8)  Y nodal coordinates of the current element
+c		    Ye(8)  Y nodal coordinates of the current element
 
 c           NCracks Number of cracks
 c           NCP    Number of crack path points (vertices)
@@ -64,7 +64,7 @@ c           XYCPrev Crack tip coordinates associated with the previous crack pat
 
              
 c           gint   Total number of integration points (either with or without subdivision)
-c		        flag   Subdivisión indicator (1 for subdivision)
+c		    flag   Subdivisión indicator (1 for subdivision)
 c           mpg    Maximum expected number of integration points for an enriched element
 c           sg     Matrix that stores the coordinates and weights of the integration points
 c           xypg   Matrix that stores the coordinates of the integration points
@@ -233,10 +233,10 @@ c          Store them as SVARS for output to the results file (.fil)
 
 
 
-C23456789012345678901234567890123456789012345678901234567890123456789012
+C 23456789012345678901234567890123456789012345678901234567890123456789012
 C%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 C&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&
-COOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOO
+C OOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOO
 C&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&
 C%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
@@ -437,17 +437,17 @@ c     --------------------------------------
 
 c     Inputs:
 
-c			ElemGG		Matrix characterization of element X
+c			ElemGG		Matrix characterization of the element
 c			n			Current element number
-c			COORDS(MCRD,nel)	nodal coordinates of the element: hr(np(44))
-c			l			Orden de cuadratura para cada direcc en cuadr (orderQ)
-c                          y definido en UEL property
-c			numpgt		Orden de cuadratura para triángulos (orderQ) y definido en UEL property
-c			numpgc   	Orden de cuadratura para cada direcc en cuadr (orderQ)
-c                          y definido en UEL property para elementos tipo 4
+c			COORDS(MCRD,nel)	nodal coordinates of the element
+c			l			Order quadrature for each direcc in char (orderQ)
+c                        and defined in UEL property
+c			numpgt		Order quadrature of triangles (orderQ) and defined in UEL property
+c			numpgc   	Order quadrature for each direcc in char (orderQ)
+c                          and defined in UEL property for Type 4 elements
 
-c			XYC(NCP,2)	Coordenadas de los puntos de Grieta	
-c 		    nel         núm. de nodos del elemento (en principio 4 para cuadrilat)
+c			XYC(NCP,2)	Coordinates of the points Crevice
+c 		    nel         number of element nodes (in principle 4 for cuadrilat )
 
 c      Outputs:			
 C             l     orden de cuadratura (nº ptos en cada dirección en cuadril)
@@ -461,21 +461,15 @@ c						 en el salto del cuarto nodo al primero)
 c			flag        Indicador de que el elemento se ha subdividido
 c						para integración (si flag=1)
 c             mpg         Número máximo de ptos de Gauss esperado (de momento, mpg=50)
-c             xypg        Coordenadas globales de los puntos de Gauss 
+c             xypg        global coordinates of the Gauss points.
 
 c-----[--.----+----.----+----.-----------------------------------------]
 
       implicit  none
 
-c     include  'comblk.h'
-c 	  include  'eldata.h'
-c 	  include  'xfem2d.h'
-c     include  'iofile.h'
-
       integer dfich,dfich2   
       common /debugfich/ dfich,dfich2
 
-c	logical esx
       integer NCracks,maxNCP,NCP(NCracks)
       integer i,j,k,l,m,NumSub,gint,flag,NelmX,nel,n,MCRD,mpg
       integer numpgt,numpgc,orderQ(3)
@@ -492,7 +486,7 @@ c     Paso a los nombres de las variables locales para los órdenes de integreaci
       numpgt=orderQ(2)
       numpgc=orderQ(3)
 
-c	Inicializacion de variables
+c	Initialization of variables
 
       flag=0
 
@@ -501,12 +495,6 @@ c	Inicializacion de variables
         xypg(i,j)=0.0d0
         end do
       end do
-
-c	Elemento estándar
-c	if (.not.esx) then
-c		call int2d(l,gint,sg)
-c		return
-c	endif
 
 c	Lectura de características del elemento actual de ElemGG
 c     Notar que ElemGGe es con tipo enteros           
@@ -517,6 +505,9 @@ c
         exit
       end if
       end do
+
+
+
 
 c      write(dfich2,*) 'Nº elem=',n,'   ElemGGe(1)=',ElemGGe(1)
 c      write(dfich2,*) '                ElemGGe(2)=',ElemGGe(2)
@@ -543,8 +534,6 @@ c       The crack tip is the last of the table
       endif
 
 
-
-
 c	Vectores duplicados de coordenadas nodales
 
       do j=0,1
@@ -553,6 +542,8 @@ c	Vectores duplicados de coordenadas nodales
       Ye(i+4*j)=COORDS(2,i)
       end do
       end do
+      
+
 
 c write(dfich2,*)  'En xint2D_X:'
 c	write(dfich2,*)
@@ -638,7 +629,7 @@ c		    --- Area del subelemento
      &           SubXe(j,1)*SubYe(j,3)-SubYe(j,2)*SubXe(j,3))/2.0d0
 
 
-c		    -- coordenadas s,t locales al elemento de pg 
+c		    -- coordinates s , t to local pg element 
             call invcuad4(Xe(1:4),Ye(1:4),xpg,ypg,s,t,Ni)
             sg(1,(i+(j-1)*gint))=s
             sg(2,(i+(j-1)*gint))=t
@@ -1625,8 +1616,8 @@ c			YG			Coordenada Y del extremo de Grieta
 
 c      Outputs:
 c			NumSub		Número de subelementos generados
-c			SubXe(10,4)	Coordenadas X de los puntos de los subelementos			
-c			SubYe(10,4)	Coordenadas X de los puntos de los subelementos
+c			SubXe(10,4)	X coordinates of the points of the sub-elements			
+c			SubYe(10,4)	Y coordinates of the points of the sub-elements
 c-----[--.----+----.----+----.-----------------------------------------]
       implicit none
 
@@ -2399,7 +2390,7 @@ CCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCC
 	    integer TypeXe(NNODE)
  
       integer ne,nn(NNODE),ix(NNODE)
-	    character*1 basu !para quitar las comas de la conectividad
+C	    character*1 basu !to remove the commas connectivity
       
 
 CCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCC
@@ -2410,7 +2401,8 @@ CCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCC
       
 	    do i=1,NelmX
 	    READ(68,*) numelem,(valores(j),j=1,NNODE)
-	    READ(69,1000) ne,basu,nn(1),basu,nn(2),basu,nn(3),basu,nn(4)
+	    READ(69,*) ne,nn(1),nn(2),nn(3),nn(4)
+C	    READ(69,1000) ne,basu,nn(1),basu,nn(2),basu,nn(3),basu,nn(4)
 	    if (numelem.eq.JELEM) then
             do k=1,NNODE
 	          TypeXe(k)=valores(k)
@@ -2428,7 +2420,7 @@ CCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCC
 c	write(dfich2,*) (TypeXe(k),k=1,NNODE)
 c	write(dfich2,*) (ix(k),k=1,NNODE)
 
-1000  format(I6,A1,I6,A1,I6,A1,I6,A1,I6)
+C 1000  format(I6,A1,I6,A1,I6,A1,I6,A1,I6)
 
 	    RETURN
 
@@ -2483,7 +2475,7 @@ c
 
 
 
-C23456789012345678901234567890123456789012345678901234567890123456789012
+C 23456789012345678901234567890123456789012345678901234567890123456789012
 
 c	initialize AMATRX and logical variables
       CALL initializeM(AMATRX,NDOFEL,NDOFEL)          
@@ -3119,7 +3111,7 @@ C      dNi/dx, dNi/dy, global coordinates of integration points.
       REAL*8  JatG(gint),B(3,Dof),DB(3,Dof),Bdvdx(3,Dof),Bdudy(3,Dof)
       REAL*8  EPS(3),SIG(3),W,dvdx(3),dudy(3),JAC,xypg(2,mpg)
 
-C23456789012345678901234567890123456789012345678901234567890123456789012   
+C 23456789012345678901234567890123456789012345678901234567890123456789012   
 
 C     First value stored in SVARS is the total number of integration points
 C     of the enriched element 

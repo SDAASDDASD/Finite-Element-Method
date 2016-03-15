@@ -30,10 +30,17 @@ TEMPLATE FOR X-FEM WITH ABAQUS
 *Element, type=U12, input=.\files\TopX, elset=ELEMTOPXU12
 *Nset, nset=ELEMTOPXU12, elset=ELEMTOPXU12
 **
+*Element, type=CPS4, input=.\files\TopXoverlay, elset=ElemTopXoverlay
+*Solid Section, elset=ElemTopXoverlay, material=MaterOverlay 
+1. 
+**
 *Material, name=Material-1
 *Elastic
-1e7, 0.333
+1e3, 0.333
 **
+*Material, name=MaterOverlay
+*Elastic
+1e-14, 0.333
 **
 **   USER DEFINED PROPERTIES FOR USER ELEMENTS
 **
@@ -50,10 +57,10 @@ TEMPLATE FOR X-FEM WITH ABAQUS
 **   7th Parameter: Dimension of the physical domain of the problem: 2=2D
 **
 *Uel property, elset=ELEMTOPXU12
-1.0e7, 0.333,1,5,7,2,2
+1.0e3, 0.333,1,5,7,2,2
 **
-*Boundary
-_PickedSet9, ENCASTRE
+*Boundary, OP=MOD
+_PickedSet9, 1,2 , 0.0
 **
 **
 *Boundary, OP=MOD
