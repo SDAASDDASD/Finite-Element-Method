@@ -27,8 +27,9 @@ c           E      Young's modulus
 c           Nu     Poisson's ratio
 c           PSS    1 - Plane stress
 c                  2 - Plane strain
+c
 c           orderQ Vector stores the following quadrature orders:
-C
+c
 c		    orderQ(1) = Quadrature order for quadrilaterals (in each direction)
 c                   NOTE: only for non-subdivided enriched elements (quadrilaterals) 
 c           orderQ(2) = Quadrature order for triangles (total points)
@@ -43,7 +44,7 @@ c                  available dof for the enriched nodes.
 
 c           NNODE  Number of nodes per element
 c           NelmX  Number of enriched elements
-c           NnodX  Number of nodes that belong to enriched elements
+c           NnodX  Number of nodes that belong to enriched elements, NOT number of enriched nodes
 c           TypeX  Matrix that stores the key number to the type of node in an enriched element: 
 c                   0 - Non-enriched (2 dof)
 c                   1 - Heaviside enrichment (4 dof)
@@ -51,28 +52,44 @@ c                   2 - Crack tip enrichment (10 dof)
   
 c           TypeXe Vector that stores the key in TypeX for the nodes of the current element
 c           ix     Vector that stores the node numbers of the current element (connectivity)
-c           Xe(8)	 X nodal coordinates of the current element
+c           Xe(8)	 X nodal coordinates of the current element (1st~4th & 1st~4th)
 c                  (it is duplicated to ease the counting from the 4th to the 1st node)
-c		    Ye(8)  Y nodal coordinates of the current element
+c		    Ye(8)    Y nodal coordinates of the current element
 
 c           NCracks Number of cracks
 c           NCP    Number of crack path points (vertices)
 c           maxNCP Maximum number of crack path points (vertices)
-c           XYC    Matrix that stores the coordinates of crack path points
-c           XYC0   Crack tip coordinates associated with the crack tip enriched element
-c           XYCPrev Crack tip coordinates associated with the previous crack path point
+c           XYC    Matrix that stores the coordinates of crack path points 
+c                  3 dimension matrix(i,j,k) : the kth coordinates of the jth crack path point of the
+c                                              the ith crack
+c                                              k=1,2 for two dimension problem
+c           XYC0(2)    Crack tip coordinates associated with the crack tip enriched element
+c           XYCPrev(2)  Crack tip coordinates associated with the previous crack path point
 
              
 c           gint   Total number of integration points (either with or without subdivision)
 c		    flag   Subdivisión indicator (1 for subdivision)
 c           mpg    Maximum expected number of integration points for an enriched element
-c           sg     Matrix that stores the coordinates and weights of the integration points
-c           xypg   Matrix that stores the coordinates of the integration points
+c           sg     Matrix that stores the LOCAL coordinates and weights of the integration points
+c           xypg   Matrix that stores the GLOBAL coordinates of the integration points
 c           Dist   Matrix that stores distances to crack from nodes of enriched elements
 c                  (this information is previously preprocessed, for example in Matlab)  
 c           ElemGG Matrix that stores information about the elements to be enriched, type of 
-c                  crack intersection and points of interesection
+c                  crack intersection and points of interesection,10 columns
 c                  (this information is previously preprocessed, for example in Matlab)  
+c                  Col. 1)  Element number
+c                  Col. 2)  Type of enriched element: -1 = not subdivided, 4 = heaviside subdivided, 
+c                           41 = crack tip element, etc, etc.
+c                  Col. 3)  Number of entering side (intersection crack-element). It should be an integer.
+c                  Col. 4)  Number of exiting side (intersection crack-element). It should be an integer.
+c                  Col. 5) X coordinate of intersection point at entering side
+c                  Col. 6) Y coordinate of intersection point at entering side
+c                  Col. 7) X coordinate of intersection point at exiting side
+c                  Col. 8) Y coordinate of intersection point at exiting side
+c                  Col. 9)  Number of crack associated (for the multicrack implementation)
+c                  Col. 10) Number of crack path vertex associated with each tip of that crack 
+c                           (for the multicrack implementation). 
+c                           This value can increase as new vertices are created during propagation.
 c
 c           BatG   Matrix that stores the [B] matrix for each enriched element at Gauss points
 c           DBatG  Matrix that stores the [D][B] matrix for each enriched element at Gauss points
@@ -440,27 +457,24 @@ c     Inputs:
 c			ElemGG		Matrix characterization of the element
 c			n			Current element number
 c			COORDS(MCRD,nel)	nodal coordinates of the element
-c			l			Order quadrature for each direcc in char (orderQ)
-c                        and defined in UEL property
-c			numpgt		Order quadrature of triangles (orderQ) and defined in UEL property
-c			numpgc   	Order quadrature for each direcc in char (orderQ)
-c                          and defined in UEL property for Type 4 elements
-
+c			l			Order quadrature for each direction in quadrilaterals --orderQ(1)
+c                       only for non-subdivided enriched elements
+c			numpgt		Order quadrature of triangles --orderQ(2)
+c                       only for enriched elements subdivided into triangles 
+c			numpgc   	Order quadrature for each direction in quadrilaterals --orderQ(3)
+c                       defined in UEL property for Type 4 elements
+c                       only for enriched elements subdivided into 2 quadrilaterals (elemX = type 4)
 c			XYC(NCP,2)	Coordinates of the points Crevice
 c 		    nel         number of element nodes (in principle 4 for cuadrilat )
 
 c      Outputs:			
-C             l     orden de cuadratura (nº ptos en cada dirección en cuadril)
-c                   OJO, sólo para los elementos cuadriláteros XFEM no intersectados
-c			gint		Número de Puntos de Gauss
-c			sg(3,*)		Coordenadas y pesos
-c			Xe(8)		Vector de coordenadas nodales x para el elemento
-c			Ye(8)		Vector de coordenadas nodales y para el elemento
-c						(Se utilizan duplicados para facilitar los contadores
-c						 en el salto del cuarto nodo al primero)
-c			flag        Indicador de que el elemento se ha subdividido
-c						para integración (si flag=1)
-c             mpg         Número máximo de ptos de Gauss esperado (de momento, mpg=50)
+c			gint		Total number of integration points (either with or without subdivision)
+c			sg(3,*)		local coordinates and weights of Gauss points
+c			Xe(8)		x coordinates of nodes in the enriched element
+c			Ye(8)		y coordinates of nodes in the enriched element
+c			flag        indicates whether to be subdivided or not
+c						subdivided : flag=1
+c             mpg         maximum expected iteration point
 c             xypg        global coordinates of the Gauss points.
 
 c-----[--.----+----.----+----.-----------------------------------------]
@@ -480,7 +494,7 @@ c-----[--.----+----.----+----.-----------------------------------------]
       allocatable :: sgt,sgc
 
 
-c     Paso a los nombres de las variables locales para los órdenes de integreación
+c    read values from uel property
       
       l=orderQ(1)
       numpgt=orderQ(2)
@@ -496,8 +510,8 @@ c	Initialization of variables
         end do
       end do
 
-c	Lectura de características del elemento actual de ElemGG
-c     Notar que ElemGGe es con tipo enteros           
+c	Reading characteristics of the current element ElemGG
+c     Note that ElemGGe is with type integer        
 c
       do i=1,NelmX
       if (int(ElemGG(i,1)).eq.n)then
@@ -506,11 +520,6 @@ c
       end if
       end do
 
-
-
-
-c      write(dfich2,*) 'Nº elem=',n,'   ElemGGe(1)=',ElemGGe(1)
-c      write(dfich2,*) '                ElemGGe(2)=',ElemGGe(2)
 
 
 c	Coordenadas del Extremo de Grieta relacionado con el elemento
@@ -534,7 +543,7 @@ c       The crack tip is the last of the table
       endif
 
 
-c	Vectores duplicados de coordenadas nodales
+c	duplexed vectors of nodal coordinates
 
       do j=0,1
       do i=1,4
@@ -545,7 +554,7 @@ c	Vectores duplicados de coordenadas nodales
       
 
 
-c write(dfich2,*)  'En xint2D_X:'
+c   write(dfich2,*)  'En xint2D_X:'
 c	write(dfich2,*)
 c	write(dfich2,*) 'Xe(i)=', (Xe(i),i=1,8)
 c	write(dfich2,*)
@@ -553,29 +562,28 @@ c	write(dfich2,*) 'Ye(i)=', (Ye(i),i=1,8)
 c	write(dfich2,*)
 
 
-c	Se distinguen 3 posibilidades para el cálculo de los PGauss:
-c	 División por triángulos, por cuadriláteros o integrar el elemento completo	
+c	3 possibilities for calculating the Gauss point are distinguished :
+c	 Division by triangles , by quadrangles or integrate the entire element
 
 c     ccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
 c     ccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc    
-c	Elementos no intersectados (ElemX con parte entera tipo 1 o -1)
+c	Items not intersected ( integer part ElemX with type 1 or -1 )
 c     ccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
 c     ccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc    
 
 
       if (ElemGGe(2).le.1) then
 
-      call int2d(l,gint,sg,nel) !Cuadratura de orderQ x orderQ = lxl, en pº,5x5
+      call int2d(l,gint,sg,nel) !Quadrature orderQ x orderQ = lxl , for instance , 5x5
 
-c          -- coordenadas x,y  globales de punto de gauss
+c          -- x, y global coordinates of gauss point
         do i= 1,gint
-c				  --- Funciones de forma
+c				  --- Shape functions
           Ni(1)= (1-sg(1,i))*(1-sg(2,i))/4
           Ni(2)= (1+sg(1,i))*(1-sg(2,i))/4
           Ni(3)= (1+sg(1,i))*(1+sg(2,i))/4
           Ni(4)= (1-sg(1,i))*(1+sg(2,i))/4
 
-c                   -- coordenadas x,y  globales de punto de gauss
           xpg= dot_product(Ni,Xe(1:4))
           ypg= dot_product(Ni,Ye(1:4))
 
@@ -587,49 +595,49 @@ c                   -- coordenadas x,y  globales de punto de gauss
 
 c     ccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
 c     ccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc    
-c	    Elementos con triángulos.
+c	    Elements with triangles
 c     ccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
 c     ccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc    
 
 
-c	(El dominio del elemento se subdivide en triángulos alineados con la 
-c	 geometría de la grieta sobre los cuales se calculan las coordenadas  
-c	 y pesos de los puntos de Gauss)
+c	(The domain element is subdivided into triangles aligned with the
+c    crack geometry on which the coordinates and weights of the Gauss points are calculated)
 
       elseif (ElemGGe(2).ne.4)then ! Then the subdivision is based on triangles
 
       flag=1
 
-c		Número de puntos de integración en cada triángulo
-c		numpg=-3 !Cuadratura de 3 puntos interiores
-c		numpg=7  !Cuadratura de 7 puntos interiores
-c		numpg=12 !Cuadratura de 12 puntos interiores
+c		Number of integration points in each triangle
+c		numpg=3  !  3 interior points Quadrature
+c		numpg=7  !  7 interior points Quadrature
+c		numpg=12 ! 12 interior points Quadrature
 
       allocate(sgt(4,abs(numpgt)))
 
       call tint2d(numpgt,gint,sgt) 
 
-c		Dividir el elemento
+c		Divide the element
       call subelem(ElemGGe,Xe,Ye,XYC0(1),XYC0(2),NumSub,SubXe,
      &                 SubYe,n,nel)
 
-c         Coordenadas globales y locales  de punto de gauss
+c         global and local coordinates of gauss point 
         do j=1,NumSub
             do i=1,gint
-c			--- coordenadas x, y globales de punto de gauss
+c			--- global coordinates of gauss point
+c           local area coordinates equals shape function for 3 node triangular
             xpg= dot_product(sgt(1:3,i),SubXe(j,1:3))
             ypg= dot_product(sgt(1:3,i),SubYe(j,1:3))
     
             xypg(1,gint*(j-1)+i)=xpg
             xypg(2,gint*(j-1)+i)=ypg
 
-c		    --- Area del subelemento			  
+c		    --- Area of subelement			  
             Area= (SubXe(j,2)*SubYe(j,3)+SubXe(j,1)*SubYe(j,2)+
      &           SubYe(j,1)*SubXe(j,3)-SubYe(j,1)*SubXe(j,2)-
      &           SubXe(j,1)*SubYe(j,3)-SubYe(j,2)*SubXe(j,3))/2.0d0
 
 
-c		    -- coordinates s , t to local pg element 
+c		    -- get local coordinates s , t of iteration point in 4 node element from global coordinates
             call invcuad4(Xe(1:4),Ye(1:4),xpg,ypg,s,t,Ni)
             sg(1,(i+(j-1)*gint))=s
             sg(2,(i+(j-1)*gint))=t
@@ -638,27 +646,26 @@ c		    -- coordinates s , t to local pg element
             end do !i
         end do !j
 
-c		Número de puntos de integración
-      gint=NumSub*gint
+c		Number of integration points
+        gint=NumSub*gint
 
 
 c     ccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
 c     ccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc    
-c	    Elementos subdivididos con cuadriláteros (tipo 4)
+c	    Elements subdivided with quadrilateral (type 4 )
 c     ccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
 c     ccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc    
 
-c	(El dominio del elemento se subdivide en dos cuadriláteros alineados con la 
-c	 geometría de la grieta sobre los cuales se calculan las coordenadas  
-c	 y pesos de los puntos de Gauss)
+c    ( The domain element is subdivided into two quadrilateral aligned with the
+c    crack geometry on which the coordinates and weights of the Gauss points are calculated)
 
       elseif (ElemGGe(2).eq.4)then
 
       flag=1
 
 c		Order quadrature ( gauss points in 1d )
-c		numpg=l !La estándar de FEAP
-c		numpg=5 !Cuadratura de 5x5
+c		numpg=l !The standard FEAP
+c		numpg=5 !Quadrature 5x5
           
 
       allocate(sgc(3,numpgc*numpgc))
@@ -667,20 +674,20 @@ c		numpg=5 !Cuadratura de 5x5
 
         if (gint.gt.numpgc*numpgc) then
         write(dfich2,*)
-        write(dfich2,*) '*ERROR* El número de columnas de sgc ',
-     &                   'en int2d_X.f debe aumentarse a ', gint
+        write(dfich2,*) '*ERROR* The number of columns of sgc ',
+     &                   'in int2d_X.f should be increased to ', gint
         stop
         endif
 
-c		Dividir el elemento
+c		Divide the element
       call subelem(ElemGGe,Xe,Ye,XYC0(1),XYC0(2),NumSub,SubXe
      &        ,SubYe,n,nel)
 
-c          -- coordenadas x,y  globales de punto de gauss
+c          -- x, y global coordinates of gauss point
       do j= 1,NumSub
         do i= 1,gint
 
-c				  --- Funciones de forma
+c				  --- Shape functions
           Ni(1)= (1-sgc(1,i))*(1-sgc(2,i))/4;
           Ni(2)= (1+sgc(1,i))*(1-sgc(2,i))/4;
           Ni(3)= (1+sgc(1,i))*(1+sgc(2,i))/4;
@@ -695,7 +702,7 @@ c				  --- Funciones de forma
           dNl(4,1)= -(1+sgc(2,i))/4;
           dNl(4,2)=  (1-sgc(1,i))/4;
 
-c			      --- Matriz Jacobiana
+c	      --- Jacobian matrix,to calculate area of 4 node sub-element
           do k= 1,2
             Jac(k,1)= 0.0;
             Jac(k,2)= 0.0;
@@ -707,7 +714,7 @@ c			      --- Matriz Jacobiana
   
           Area=Jac(1,1)*Jac(2,2)-Jac(1,2)*Jac(2,1)
 
-c         -- coordenadas x,y  globales de punto de gauss
+c         -- x, y global coordinates of gauss point
           xpg= dot_product(Ni,SubXe(j,1:4));
           ypg= dot_product(Ni,SubYe(j,1:4));
 
@@ -715,7 +722,7 @@ c         -- coordenadas x,y  globales de punto de gauss
           xypg(2,gint*(j-1)+i)=ypg
 
 
-c				  -- coordenadas s,t locales al elemento de pg
+c		  -- get local coordinates s , t of iteration point in 4 node element from global coordinates
           call invcuad4(Xe(1:4),Ye(1:4),xpg,ypg,s,t,Ni)
 
           sg(1,(i+(j-1)*gint))=s
@@ -725,15 +732,15 @@ c				  -- coordenadas s,t locales al elemento de pg
         end do  !i
       end do !j
 
-c		  Número de puntos de integración
+c		  Number of integration points
       gint=NumSub*gint
 
 
       end if
 
       if (gint.gt.mpg) then
-      write(dfich2,*) '*ERROR* El parámetro mpg=',mpg,
-     &                   '  debe aumentarse a mpg=',gint
+      write(dfich2,*) '*ERROR* the parameter mpg=',mpg,
+     &                   '  It should be increased to mpg=',gint
       stop
       end if
 
@@ -755,7 +762,7 @@ C Yes
 
 
 c-----[--.----+----.----+----.-----------------------------------------]
-c      Purpose: Form Gauss points and weights for two dimensions
+c      Purpose: Form Gauss points and weights for 4 node element
 
 c      Inputs:
 c         l       - Number of points/direction
@@ -787,7 +794,18 @@ c     Set number of total points
 
       gint = l*l
 
-c     5 pt. integration
+c     5 integration points
+c
+c     1-------------------2
+c     |                   |
+c     |   *           *   |
+c     |                   |
+c     |         *         |
+c     |                   |
+c     |   *           *   |
+c     |                   |
+c     3-------------------4
+c
 
       if(l.eq.0) then
 
@@ -804,6 +822,17 @@ c     5 pt. integration
         sg(3,5) = 16.d0/9.d0
 
 c     1x1 integration
+c
+c     1-------------------2
+c     |                   |
+c     |                   |
+c     |                   |
+c     |         *         |
+c     |                   |
+c     |                   |
+c     |                   |
+c     3-------------------4
+c
 
       elseif(l.eq.1) then
         sg(1,1) = 0.d0
@@ -812,6 +841,17 @@ c     1x1 integration
         sg(3,1) = 4.d0
 
 c     2x2 integration
+c
+c     1-------------------2
+c     |                   |
+c     |   *           *   |
+c     |                   |
+c     |                   |
+c     |                   |
+c     |   *           *   |
+c     |                   |
+c     3-------------------4
+c
 
       elseif(l.eq.2) then
         g = sqrt(third)
@@ -822,6 +862,17 @@ c     2x2 integration
         end do ! i
 
 c     3x3 integration
+c
+c     1-------------------2
+c     |                   |
+c     |   *     *      *  |
+c     |                   |
+c     |   *     *      *  |
+c     |                   |
+c     |   *     *      *  |
+c     |                   |
+c     3-------------------4
+c
 
       elseif(l.eq.3) then
         g = sqrt(0.6d0)
@@ -833,6 +884,17 @@ c     3x3 integration
         end do ! i
 
 c     4x4 integration
+c
+c     1-------------------2
+c     |                   |
+c     |  *   *     *   *  |
+c     |  *   *     *   *  |
+c     |                   |
+c     |  *   *     *   *  |
+c     |  *   *     *   *  |
+c     |                   |
+c     3-------------------4
+c
 
       elseif(l.eq.4) then
         g     = sqrt(4.8d0)
@@ -856,6 +918,17 @@ c     4x4 integration
         end do ! i
 
 c     5x5 integration
+c
+c     1-------------------2
+c     |                   |
+c     |  *   *  *  *   *  |
+c     |  *   *  *  *   *  |
+c     |  *   *  *  *   *  |
+c     |  *   *  *  *   *  |
+c     |  *   *  *  *   *  |
+c     |                   |
+c     3-------------------4
+c
 
       elseif(l.eq.5) then
 
@@ -918,7 +991,7 @@ c         l       - Number of gauss points indicator
 
 c      Outputs:
 c         gint    - Total number of points
-c         el(4,*) - Area coordinate points and weights for quadrature
+c         el(4,*) - Area coordinate and weights of points for quadrature
 c-----[--.----+----.----+----.-----------------------------------------]
       implicit  none
 
@@ -937,6 +1010,15 @@ c-----[--.----+----.----+----.-----------------------------------------]
       data ww, eta / 0.3333333333333333d0 , 0.1666666666666667d0 /
 
 c     1-point gauss integration
+c
+c             1
+c            / \
+c           /   \
+c          /     \
+c         /   *   \
+c        /         \
+c       2-----------3
+c
 
       if(l.eq.1) then
         el(1,1) = ww
@@ -946,7 +1028,15 @@ c     1-point gauss integration
         gint    = 1
 
 c     3-point integration: mid-edge points
-
+c
+c             1
+c            / \
+c           /   \
+c          *     *
+c         /       \
+c        /         \
+c       2-----*-----3
+c
       elseif(l.eq.3) then
         el(1,1) = 0.d0
         el(2,1) = 0.5d0
@@ -966,6 +1056,15 @@ c     3-point integration: mid-edge points
         gint    = 3
 
 c     3-point integration: interior points
+c
+c             1
+c            / \
+c           / * \
+c          /     \
+c         /       \
+c        / *     * \
+c       2-----------3
+c
 
       elseif(l.eq.-3) then
 
@@ -987,6 +1086,15 @@ c     3-point integration: interior points
         gint    = 3
 
 c     4-point gauss integration: NOT RECOMMENDED DUE TO NEGATIVE WEIGHT
+c
+c             1
+c            / \
+c           / * \
+c          /     \
+c         /   *   \
+c        / *     * \
+c       2-----------3
+c
 
       elseif(l.eq.4) then
         el(1,1) =  ww
@@ -1603,19 +1711,19 @@ C Yes
 
 c-----[--.----+----.----+----.-----------------------------------------]
 
-c     Purpose: Descomposición del dominio del elemento en subelementos
-c			 para la integracion
+c     Purpose : element domain decomposed into sub-elements
+c               for integration
 c     --------------------------------------
 
 c      Inputs:
-c			ElemGGe		Matriz de caracterización del elemento
-c			Xe(8)		Coordenadas X de los nodos del elemento
-c			Ye(8)		Coordenadas Y de los nodos del elemento
-c			XG			Coordenada X del extremo de Grieta
-c			YG			Coordenada Y del extremo de Grieta		
+c			ElemGGe		Profiling Element Array
+c			Xe(8)		X coordinates of element nodes
+c			Ye(8)		Y coordinates of element nodes
+c			XG			X coordinate of the end of Crack
+c			YG			Y coordinate of the end of Crack		
 
 c      Outputs:
-c			NumSub		Número de subelementos generados
+c			NumSub		Number of sub-elements generated
 c			SubXe(10,4)	X coordinates of the points of the sub-elements			
 c			SubYe(10,4)	Y coordinates of the points of the sub-elements
 c-----[--.----+----.----+----.-----------------------------------------]
@@ -1642,7 +1750,7 @@ c  	  include  'iofile.h'
 c      write(dfich2,*) 'Nº elem=',n,'   ElemGG(i,1)=',ElemGGe(1)
 c      write(dfich2,*) 'ElemGG(i,2)=',ElemGGe(2),'   tipo=',tipo
 
-c     write(dfich2,*)
+c       write(dfich2,*)
 c	    write(dfich2,*)
 c	    write(dfich2,*) 'Xe(i)=', (Xe(i),i=1,8)
 c	    write(dfich2,*)
@@ -1651,7 +1759,7 @@ c	    write(dfich2,*)
 
 
 
-c	Interseccion en 2 nodos opuestos
+c	2 opposite intersection nodes
 c
 c		2									
 c		3
@@ -1671,11 +1779,25 @@ c		51
 c		80 
 
 
-c	!!!Convierto a enteros con la asignacion en variable entera:preguntar 
+c	!!!Convert to integers with integer variable assignment
 
 
 
       select case(tipo)
+
+c
+c     1-------------------------2
+c     | \                       |
+c     |    \                    |
+c     |      \                  |
+c     |         \               |
+c     |           \             |
+c     |              \          |
+c     |                 \       |
+c     |                    \    |
+c     |                       \ |
+c     3-------------------------4
+c
 
       case(2)
       NumSub= 2;
@@ -1691,7 +1813,8 @@ c	!!!Convierto a enteros con la asignacion en variable entera:preguntar
 
 
 
-c	 === Interseccion en nodo y lado
+c	 === Intersection Node and side
+
       case(3)
       NumSub= 5;
       SubXe=0
@@ -1703,7 +1826,7 @@ c	 === Interseccion en nodo y lado
 
       if ((abs(n1-l1).eq.1).or.((n1.eq.4).and.(l1.eq.1))) then
 
-c	    % - triangulo + cuadrilatero
+c	    % - quadrilateral + triangle
     
       SubXe(1,1)= Xe(n1);      SubYe(1,1)= Ye(n1);
       SubXe(1,2)= Xe(n1+1);    SubYe(1,2)= Ye(n1+1);
@@ -1729,7 +1852,7 @@ c	    % - triangulo + cuadrilatero
       SubXe(5,3)= xm;          SubYe(5,3)= ym;
     
       else
-c	    % - cuadrilatero + triangulo
+c	    % - quadrilateral + triangle
     
       SubXe(1,1)= Xe(n1);      SubYe(1,1)= Ye(n1);
       SubXe(1,2)= x1;          SubYe(1,2)= y1;
@@ -1772,7 +1895,7 @@ c		% === Two opposite sides intersection
 
 
 
-c	 === Interseccion en 2 lados contiguos
+c	 === Two contiguous sides intersection
       case(5)
       l1= ElemGGe(3);
       l2= ElemGGe(4);
@@ -2017,8 +2140,8 @@ c	    elseif ((XG.eq.xl2).and.(YG .eq.yl2)) then !!!!!!!!!!reales
 		    xls=xl;
 		    yls=yl;
 	    else
-	      write(dfich2,*) '*ERROR* El elemento ',n,' de tipo ',tipo,
-     &                   ' no ha podido subdividirse en subelem.f'
+	      write(dfich2,*) '*ERROR* The element ',n,' type ',tipo,
+     &                   ' not been able subdivided into subelem'
 	      stop
 	    end if   
     
@@ -2155,7 +2278,7 @@ c	    elseif ((abs(XG-xl2).lt.tol).and.(abs(YG-yl2).lt.tol))then
 
 c    	% == Tipo 80
 	    case(80)
-      n1=0
+        n1=0
 	    do i=1,nel
 		  if ((XG.eq.Xe(i)).and.(YG.eq.Ye(i))) then
 	  	n1=i
@@ -2163,7 +2286,7 @@ c    	% == Tipo 80
      	end do
 	    if (n1.eq.0) then
 	 
-	    write(dfich2,*) '*ERROR* El elemento ',n,' de tipo ',tipo,
+	      write(dfich2,*) '*ERROR* El elemento ',n,' de tipo ',tipo,
      &                   ' no ha podido subdividirse en subelem.f'
 	    stop
 	    endif
@@ -2201,20 +2324,20 @@ C Yes
 
 c-----[--.----+----.----+----.-----------------------------------------]
 
-c     Purpose: Calcular las coordenadas locales en el elemento de los puntos de gauss
-c				a partir de sus coordenadas globales
+c     Purpose: Calculate the local coordinates in the element gauss points 
+c				from its global coordinates
 c     --------------------------------------
 
 c      Inputs:
-c			Xe		Coordenadas X de los nodos del elemento
-c			Ye		Coordenadas Y de los nodos del elemento
-c			x		Coordenada x global del punto de Gauss
-c			y	    Coordenada y global del punto de Gauss
+c			Xe		X coordinates of the nodes of the element
+c			Ye		Y coordinates of the nodes of the element
+c			x		X overall coordinate of Gauss point
+c			y	    Y overall coordinate of Gauss point
 
 c      Outputs:
-c			s		Coordenadas x local del punto de Gauss
-c			t		Coordenadas y local del punto de Gauss			
-c			N		Funciones de Forma
+c			s		x local coordinate of Gauss point
+c			t		y local coordinate of Gauss point			
+c			N		shape function
 	
 c-----[--.----+----.----+----.-----------------------------------------]
 
@@ -2238,7 +2361,7 @@ c-----[--.----+----.----+----.-----------------------------------------]
 	    N= (/0.25, 0.25, 0.25, 0.25/);
 	    error = 1.0d0;
 
-c	Iterativamente calcula las coordenadas locales del punto
+c	Iteratively calculates the local coordinates of point
 	    do iter=1,100
 	    if (error.lt.eps) exit
 
@@ -2350,7 +2473,7 @@ c          write(dfich2,*) ' Utilizo la otra rutina para invertir'
         endif
       end do ! n
 
-      if (flag) then !Utilizo la otra rutina para invertir
+      if (flag) then !I use another routine to invest
         call INV_J(a,ndm) 
 	    endif
 
@@ -2372,12 +2495,12 @@ C
 
       IMPLICIT NONE
 
-C       Rutina que busca los num. de nodos del elemto en cuestión (conectividad)
-c       Tb. busca para cada uno de esos nodos del elemento en cuestión
-c       qué TypeX tiene y los guarda en TypeXe
+C       Routine searches for number of nodes involved ( connectivity )
+c       Then searching for what each of those nodes of the element has in
+c       TypeX and keeps them in TypeXe
 
-c       OUTPUTS: ix  :  conectividad (num. de nodos del elemento)
-c                TypeXe  : TypeX para cada nodo del elemento
+c       OUTPUTS: ix  :  connectivity (no. of element nodes )
+c                TypeXe  : TypeX for each node element
 
 
 CCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCC
@@ -2482,7 +2605,7 @@ c	initialize AMATRX and logical variables
 	    NodeType1=.false.
 	    NodeType2=.false.
 
-c     Reduce info passed thru COORDS (3D) to xl (2D)
+c     Reduce info passed through COORDS (3D) to xl (2D)
       DO i=1,dimens
 	    DO j=1,NNODE
 	    xl(i,j)=COORDS(i,j)
@@ -2859,22 +2982,22 @@ C Yes
 
 c-----[--.----+----.----+----.-----------------------------------------]
 
-c     Purpose: Calcular las funciones de extremo de grieta en un punto.  
-c			 Se hace una transformación de coordenadas a polares con origen  
-c			 en extremo de grieta. Se calculan las funciones de extremo de 
-c			 grieta y luego sus derivadas respecto a coordenadas globales.
+c     Purpose: Calculating crack tip functions at one point.
+c              a polar coordinate transformation is made with origin
+c              in crack tip and then crack functions its 
+c              derivatives with respect to global coordinates are calculated.
 c     --------------------------------------
 
 c      Inputs:
-c			X		Coordenada X punto de Gauss
-c			Y		Coordenada Y punto de Gauss
-c			XYC		Coordenadas de los puntos de Grieta
-c			shp		Funciones de forma y sus derivadas en el punto
+c			X		X coordinates of Gauss point
+c			Y		Y coordinates of Gauss point
+c			XYC		Coordinates of the Crevice points 
+c			shp		Shape functions and their derivatives at the point
 c       
 
 c      Outputs:
-c			dNF(nel,2,4)	Derivadas de N*funciones de extremo de grieta en PG
-c			Fnode(nel,2,4) Funciones de extremo de grieta en nodos del elem
+c			dNF(nel,2,4)	Derived from N * functions crack tip in PG
+c			Fnode(nel,2,4) Functions crack tip nodes elem
 
 c-----[--.----+----.----+----.-----------------------------------------]
 
@@ -2896,17 +3019,17 @@ c      common /debugfich/ dfich,dfich2
 
 c	XYC0=XYC(NCP,1:2)
 
-c	Coordenadas globales del punto de Gauss
+c	Global Gauss point coordinates
 	    X= dot_product(shp(3,1:4),Xe(1:4))
       Y= dot_product(shp(3,1:4),Ye(1:4))
 
 
-c	Calculo de vectores unitarios tangente y normal en extremo de grieta
+c	Calculation normal unit vectors tangent and crack tip
 	    longG= sqrt((XYCPrev(1)-XYC0(1))**2+(XYCPrev(2)-XYC0(2))**2);
 	    tx= (XYC0(1)-XYCPrev(1))/longG;
 	    ty= (XYC0(2)-XYCPrev(2))/longG;
 
-c	% --- Coordenadas polares en extremo de grieta 
+c	% --- polar coordinates crack tip 
       rt=  (X-XYC0(1))*tx + (Y-XYC0(2))*ty;
       rn= -(X-XYC0(1))*ty + (Y-XYC0(2))*tx;
       r2= (X-XYC0(1))**2 + (Y-XYC0(2))**2;
@@ -2915,7 +3038,7 @@ c	% --- Coordenadas polares en extremo de grieta
       theta= atan2(rn,rt);
 	    betta= atan2(Y-XYC0(2),X-XYC0(1))
 
-c      % --- Derivadas de coordenadas de extremo de grieta
+c      % --- Derived crack tip coordinate 
 c      dthx= -(ty*rt+tx*rn)/r2;
 c      dthy=  (tx*rt-ty*rn)/r2;
 	    dthx=-(Y-XYC0(2))/r2
@@ -2923,14 +3046,14 @@ c      dthy=  (tx*rt-ty*rn)/r2;
       drrx=(X-XYC0(1))/2/r/rr;
       drry=(Y-XYC0(2))/2/r/rr;
 
-c      % --- Funciones singulares extremo de grieta
+c      % --- Crack tip singular functions
 c			Fi(x)
       F(1)= rr*sin(theta/2);
       F(2)= rr*cos(theta/2);
       F(3)= rr*sin(theta/2)*sin(theta);
       F(4)= rr*cos(theta/2)*sin(theta);
 
-c      % --- Derivadas de funciones singulares extremo de grieta
+c      % --- Singular functions derived from the crack tip
 c			 dFi/dx, dFi/dy
 c      dF(1,1)= sin(theta/2)*drrx + rr*cos(theta/2)*dthx/2;
 c      dF(1,2)= sin(theta/2)*drry + rr*cos(theta/2)*dthy/2;
@@ -2949,7 +3072,7 @@ c      dF(2,2)= cos(theta/2)*drry - rr*sin(theta/2)*dthy/2;
       dF(4,2)= cos(theta/2)*sin(theta)*drry + rr*(-sin(theta/2)*
      &	     sin(theta)/2 + cos(theta/2)*cos(theta) )*dthy;
 
-c      %--- Derivadas de interpolacion
+c      %--- Derived Interpolation
       do i=1,4
         do j=1,2
           do k=1,4
@@ -2959,18 +3082,18 @@ c      %--- Derivadas de interpolacion
       end do
 
 
-c	Para conocer las deriv funciones de extremo de grieta en los nodos del elemento (Eugenio)
-c       y poder tener los gdl físicos en los dos primeros gdl. 
+c	For the deriv crack-tip functions at the nodes of the element ( Eugene)
+c   and to have physical gdl in the first two gdl . 
 
-c       ******* Bucle para las posiciones nodales *********
+c       ******* Loop nodal positions *********
 
       do i=1,4
 
-c	  Coordenadas globales del nodo i
+c	  global coordinates of the node i
 	      X= Xe(i)
         Y= Ye(i)
 
-c	   --- Coordenadas polares en extremo de grieta 
+c	   --- polar coordinates of crack tip 
         rt=  (X-XYC0(1))*tx + (Y-XYC0(2))*ty;
         rn= -(X-XYC0(1))*ty + (Y-XYC0(2))*tx;
         r2= (X-XYC0(1))**2 + (Y-XYC0(2))**2;
@@ -2983,24 +3106,24 @@ c	   --- Coordenadas polares en extremo de grieta
 C      write(dfich2,*) 'Angulo theta=',theta
 C      write(dfich2,*) 'Angulo beta=',betta
 
-c       --- Derivadas de coordenadas de extremo de grieta
+c       --- Derived coordinate crack tip
 	      dthx=-(Y-XYC0(2))/r2
 	      dthy=(X-XYC0(1))/r2
         drrx=(X-XYC0(1))/2/r/rr;
         drry=(Y-XYC0(2))/2/r/rr;
 
-c       --- Funciones singulares extremo de grieta
+c       --- Crack tip singular functions
 c			Fi(x)
         Fnode(i,1)= rr*sin(theta/2);
         Fnode(i,2)= rr*cos(theta/2);
         Fnode(i,3)= rr*sin(theta/2)*sin(theta);
         Fnode(i,4)= rr*cos(theta/2)*sin(theta);
 
-c        --- Derivadas de funciones singulares extremo de grieta
+c        --- Singular functions derived from the crack tip
 c			dFi/dx, dFi/dy
 	  
-c        No hacen falta las derivadas de F porque el valor de F en los nodos 
-c        es una constante que no depende de x,y en la expresión de la aprox. de desplaz. 
+c        No need for the derivatives of F because the value of F at the nodes
+c        is a constant independent of x , and the expression of approx . of Offset . 
 
 c      %--- Derivadas de interpolacion  /// ESTO YA NO LO HAGO AQUÍ. LO HAGO EN LA RUTINA K_U12
 c        do j=1,2
@@ -3032,20 +3155,20 @@ C Yes
 
 c-----[--.----+----.----+----.-----------------------------------------]
 
-c     Purpose: Calcular la función de Heaviside en un punto x. 
-c			 Evalua la distancia del punto a la grieta interpolando
-c			 la distancia de los nodos a la grieta con las funciones de
-c			 forma en el punto x.
+c     Purpose: Calculate the Heaviside function at a point x .
+c              Evaluate the distance from point to crack interpolating
+c              the distance of the nodes to the crack with functions
+c              formed at the point x .
 c     --------------------------------------
 
 c      Inputs:
-c			Dist(n,3) = Dist(nel,3)	Matriz de distancia de nodos a grieta
-c			ix(*) = ix(nel)		Conectividad del elemento
-c			shp(3,nel)	Funciones de forma y sus derivadas en el punto
+c			Dist(n,3) = Dist(nel,3)	Distance matrix of nodes to crack
+c			ix(*) = ix(nel)		Connectivity element
+c			shp(3,nel)	Shape functions and their derivatives at the point
 
 c      Outputs:
-c			H 			Función heaviside en Punto x,y
-c             Hnode   	Función heaviside en nodos del elemento
+c			H 			Heaviside function in point x, y
+c             Hnode   	Heaviside function element nodes
 c-----[--.----+----.----+----.-----------------------------------------]
 
       implicit  none
@@ -3056,7 +3179,7 @@ c      common /debugfich/ dfich,dfich2
 	    integer i,nel,ix(nel),j,NnodX
 	    real*8  VDist(4),Dist(NnodX,3),DisPG,shp(3,nel),H,Hnode(4)
 	
-c	Distancias de los nodos del elemento a la grieta extraídas de la matriz [Dist]
+c	Distances element nodes to crack extracted from the matrix [ Dist ]
 	    do i=1,4
 	      do j=1,NnodX
 	        if (Dist(j,1).eq.ix(i)) then
@@ -3066,17 +3189,17 @@ c	Distancias de los nodos del elemento a la grieta extraídas de la matriz [Dist]
 	      end do
 	    end do
 
-c	Proyectar la distancia en los nodos al punto x
+c	Projecting distance nodes to the point x
 	    DisPG=dot_product(VDist,shp(3,1:4))
 
-c	Función de Heaviside en el punto. 
-c		(Unitaria y de signo igual al de la distancia evaluada en x)
+c	Heaviside function at the point. 
+c		(Unitary and equal to the distance x sign evaluated)
 	    H=sign(1.0d0,DisPG)
 c      write(dfich2,*) 'Heaviside H=',H
 
-c	Para conocer la función de Heaviside en los nodos del elemento (Eugenio)
-c       y poder tener los gdl físicos en los dos primeros gdl. 
-c		(Unitaria y de signo igual al de la distancia evaluada en x)
+c	For Heaviside function at the nodes of the element ( Eugene)
+c   and to have physical GDL in the first two GDL .
+c   ( Unitary and equal to the distance evaluated sign x )
 	    do i=1,4
 	    Hnode(i)=sign(1.0d0,VDist(i))
       end do
