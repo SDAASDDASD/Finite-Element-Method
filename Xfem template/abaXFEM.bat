@@ -1,2 +1,2 @@
-abaqus job=myXFEM user=UEL_XFEM interactive
+call abaqus job=myXFEM user=UEL_XFEM interactive
 pause

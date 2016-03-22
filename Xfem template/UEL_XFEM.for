@@ -1971,7 +1971,7 @@ c	% == Tipo 12
      &        (abs(YG-Ye(n1+1)).le.tol)) then
         n1=n1+1
       else
-        write(dfich2,*) 'Paso por aquí'
+        write(dfich2,*) 'Paso por aqu'
         write(dfich2,*) '*ERROR* El elemento ',n,' de tipo ',tipo,
      &                   ' no ha podido subdividirse en subelem.f'
         stop
@@ -2572,13 +2572,13 @@ C Yes
 	    INTEGER NDOFEL,NNODE,dimens,MCRD,PSS,NnodX,gint,flag,pos
 	    INTEGER l,i,j,kk,TypeXe(NNODE),ix(NNODE)
 
-      REAL*8 E,Nu,Dist(NnodX,3),sg(3,*)
+        REAL*8 E,Nu,Dist(NnodX,3),sg(3,*)
 	    REAL*8 AMATRX(NDOFEL,NDOFEL),XYC0(2),XYCPrev(2)
-      REAL*8 Xe(2*NNODE),Ye(2*NNODE),COORDS(MCRD,NNODE),xl(dimens,NNODE)
+        REAL*8 Xe(2*NNODE),Ye(2*NNODE),COORDS(MCRD,NNODE),xl(dimens,NNODE)
 	    REAL*8 xsj(gint),shp(3,4)
 	    REAL*8 dNF(NNODE,2,4),Fnode(NNODE,4),H,Hnode(NNODE)
-      REAL*8 B(3,NDOFEL), DB(3,NDOFEL), BT(NDOFEL,3), D(3,3)
-      REAL*8 BatG(3*gint,NDOFEL),DBatG(3*gint,NDOFEL),JatG(gint)
+        REAL*8 B(3,NDOFEL), DB(3,NDOFEL), BT(NDOFEL,3), D(3,3)
+        REAL*8 BatG(3*gint,NDOFEL),DBatG(3*gint,NDOFEL),JatG(gint)
 
 	    LOGICAL NodeType1,NodeType2
 

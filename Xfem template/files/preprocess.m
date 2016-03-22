@@ -176,10 +176,14 @@ for i =1 : size(TopX,1)
         GGelemX(i,2) = 4;
     elseif  (ismember(TopX(i,1),tip_elem))
         GGelemX(i,2) = 40;
-        GGelemX(i,9) = 1;
-        GGelemX(i,10) = 2;
     else
         GGelemX(i,2) = -1;
+    end
+    for j = 2 : 5
+        if TopXTypeX(i,j)==2
+        GGelemX(i,9) = 1;
+        GGelemX(i,10) = 2;
+        end
     end
     corner = [TopX(i,2:5),TopX(i,2)];
     loop = 3;
