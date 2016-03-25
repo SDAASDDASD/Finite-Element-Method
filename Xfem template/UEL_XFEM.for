@@ -79,7 +79,7 @@ c                  crack intersection and points of interesection,10 columns
 c                  (this information is previously preprocessed, for example in Matlab)  
 c                  Col. 1)  Element number
 c                  Col. 2)  Type of enriched element: -1 = not subdivided, 4 = heaviside subdivided, 
-c                           41 = crack tip element, etc, etc.
+c                           40 = crack tip element, etc.
 c                  Col. 3)  Number of entering side (intersection crack-element). It should be an integer.
 c                  Col. 4)  Number of exiting side (intersection crack-element). It should be an integer.
 c                  Col. 5) X coordinate of intersection point at entering side
@@ -108,7 +108,7 @@ c
        
        INTEGER i,j,k,PSS,orderQ(3),gint,flag,dimens
        INTEGER NCracks,maxNCP,NelmX,NnodX,TypeXe(NNODE),ix(NNODE)
-       INTEGER,PARAMETER :: mpg=1650 ! up to more than 40x40 Gauss integration points per element
+       INTEGER,PARAMETER :: mpg=100 ! up to more than 40x40 Gauss integration points per element
        INTEGER,ALLOCATABLE:: TypeX(:,:),NCP(:)
 
        REAL*8 E, Nu
@@ -138,6 +138,7 @@ c      Read real and integer properties set at the ABAQUS input file
        dimens = JPROPS(5)
 
 c      Read the working directory
+c      This subroutine is previously defined in ABAQUS.
        CALL GETOUTDIR(OUTDIR,LENOUTDIR)
 
 c      *************************************************************************   
@@ -152,7 +153,7 @@ c           number of enriched elements and enriched nodes.
    
 c      Allocate dimensions
        ALLOCATE (TypeX(NnodX,2), NCP(NCracks))
-       ALLOCATE (XYC(NCracks,maxNCP,2), Dist(NnodX,3), ElemGG(NelmX,10))
+       ALLOCATE (XYC(NCracks,maxNCP,2), Dist(NnodX,2), ElemGG(NelmX,10))
 
 c      Read coordinates of path points for each crack
        OPEN(68,FILE=OUTDIR(1:LENOUTDIR)//'\files\GGXYC')
@@ -167,7 +168,7 @@ c      Read coordinates of path points for each crack
 c      Read list of enriched nodes, type of enrichment and distances
        OPEN(68,FILE=OUTDIR(1:LENOUTDIR)//'\files\GGnodeX')
        DO i=1,NnodX
-       READ(68,*) (TypeX(i,j),j=1,2),(Dist(i,j),j=2,3)
+       READ(68,*) (TypeX(i,j),j=1,2),Dist(i,2)
        Dist(i,1)=TypeX(i,1)
        END DO  
        CLOSE(68)
@@ -250,7 +251,6 @@ c          Store them as SVARS for output to the results file (.fil)
 
 
 
-C 23456789012345678901234567890123456789012345678901234567890123456789012
 C%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 C&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&
 C OOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOO
@@ -366,6 +366,7 @@ C
 CCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCC
 C Yes
       SUBROUTINE INV_J(J,Ngdl)
+c     calculate inverse matrix of 2*2 matrix
       INTEGER Ngdl
       REAL*8 J(Ngdl,Ngdl)
 C
@@ -481,8 +482,6 @@ c-----[--.----+----.----+----.-----------------------------------------]
 
       implicit  none
 
-      integer dfich,dfich2   
-      common /debugfich/ dfich,dfich2
 
       integer NCracks,maxNCP,NCP(NCracks)
       integer i,j,k,l,m,NumSub,gint,flag,NelmX,nel,n,MCRD,mpg
@@ -525,7 +524,7 @@ c
 c	Coordenadas del Extremo de Grieta relacionado con el elemento
 
       if (ElemGGe(9).eq.0) then 
-c       The element is not crack tip and will not be the end of crack
+c       The element does not include crack tip enriched node and will not be the end of crack
         XYC0(1)=0
         XYC0(2)=0
         XYCPrev(1)=0
@@ -553,13 +552,6 @@ c	duplexed vectors of nodal coordinates
       end do
       
 
-
-c   write(dfich2,*)  'En xint2D_X:'
-c	write(dfich2,*)
-c	write(dfich2,*) 'Xe(i)=', (Xe(i),i=1,8)
-c	write(dfich2,*)
-c	write(dfich2,*) 'Ye(i)=', (Ye(i),i=1,8)
-c	write(dfich2,*)
 
 
 c	3 possibilities for calculating the Gauss point are distinguished :
@@ -673,8 +665,8 @@ c		numpg=5 !Quadrature 5x5
       call int2d(numpgc,gint,sgc,nel)
 
         if (gint.gt.numpgc*numpgc) then
-        write(dfich2,*)
-        write(dfich2,*) '*ERROR* The number of columns of sgc ',
+        write(*,*)
+        write(*,*) '*ERROR* The number of columns of sgc ',
      &                   'in int2d_X.f should be increased to ', gint
         stop
         endif
@@ -739,7 +731,7 @@ c		  Number of integration points
       end if
 
       if (gint.gt.mpg) then
-      write(dfich2,*) '*ERROR* the parameter mpg=',mpg,
+      write(*,*) '*ERROR* the parameter mpg=',mpg,
      &                   '  It should be increased to mpg=',gint
       stop
       end if
@@ -766,7 +758,7 @@ c      Purpose: Form Gauss points and weights for 4 node element
 
 c      Inputs:
 c         l       - Number of points/direction
-c         nel     - num. de nodos en el elemento      
+c         nel     - number of nodes of the element      
 
 c      Outputs:
 c         gint    - Total number of points
@@ -774,12 +766,7 @@ c         sg(3,*) - Array of points and weights
 c-----[--.----+----.----+----.-----------------------------------------]
       implicit  none
 
-      integer dfich,dfich2   
-      common /debugfich/ dfich,dfich2
 
-
-c      include  'eldata.h'
-c      include  'iofile.h'
 
       integer   i,j,k,l,gint, lr(9),lz(9),lw(9),nel
       real*8    g,h, third, sg(3,*),ss(5),ww(5)
@@ -958,7 +945,7 @@ c
 c     Error
 
       else
-        write(dfich2,2000) l
+        write(*,2000) l
         stop    
       endif
 
@@ -995,8 +982,6 @@ c         el(4,*) - Area coordinate and weights of points for quadrature
 c-----[--.----+----.----+----.-----------------------------------------]
       implicit  none
 
-      integer dfich,dfich2   
-      common /debugfich/ dfich,dfich2
 
 
       integer   l, gint,i,j
@@ -1683,7 +1668,7 @@ c     73-point order 19 formula
 c     Unspecified quadrature specified
 
       else
-        write(dfich2,2000) l
+        write(*,2000) l
         gint    = -1
       stop
       endif
@@ -1713,6 +1698,7 @@ c-----[--.----+----.----+----.-----------------------------------------]
 
 c     Purpose : element domain decomposed into sub-elements
 c               for integration
+C           ----maximum 10 subelements
 c     --------------------------------------
 
 c      Inputs:
@@ -1729,11 +1715,6 @@ c			SubYe(10,4)	Y coordinates of the points of the sub-elements
 c-----[--.----+----.----+----.-----------------------------------------]
       implicit none
 
-c     include  'eldata.h'
-c  	  include  'iofile.h'
-
-      integer dfich,dfich2   
-      common /debugfich/ dfich,dfich2
 
 
       integer NumSub,n1,n2,l1,l2,lado,lado2,nl,i,tipo,lad,lad2,lads
@@ -1747,36 +1728,6 @@ c  	  include  'iofile.h'
       tol=1d-6
 
 
-c      write(dfich2,*) 'Nº elem=',n,'   ElemGG(i,1)=',ElemGGe(1)
-c      write(dfich2,*) 'ElemGG(i,2)=',ElemGGe(2),'   tipo=',tipo
-
-c       write(dfich2,*)
-c	    write(dfich2,*)
-c	    write(dfich2,*) 'Xe(i)=', (Xe(i),i=1,8)
-c	    write(dfich2,*)
-c	    write(dfich2,*) 'Ye(i)=', (Ye(i),i=1,8)
-c	    write(dfich2,*)
-
-
-
-c	2 opposite intersection nodes
-c
-c		2									
-c		3
-c		4
-c		5
-c		11
-c		12
-c		20
-c		22
-c		30
-c		31
-c		32
-c		40
-c		41
-c		50
-c		51
-c		80 
 
 
 c	!!!Convert to integers with integer variable assignment
@@ -1971,9 +1922,9 @@ c	% == Tipo 12
      &        (abs(YG-Ye(n1+1)).le.tol)) then
         n1=n1+1
       else
-        write(dfich2,*) 'Paso por aqu'
-        write(dfich2,*) '*ERROR* El elemento ',n,' de tipo ',tipo,
-     &                   ' no ha podido subdividirse en subelem.f'
+        write(*,*) 'Step by here'
+	    write(*,*) '*ERROR* The element ',n,' type ',tipo,
+     &                   ' not been able subdivided into subelem'
         stop
 
       end if   
@@ -2114,7 +2065,6 @@ c	% == Tipo 40
 	    SubXe(6,1)=XG;              SubYe(6,1)= YG;
 	    SubXe(6,2)=Xe(lad2+1);      SubYe(6,2)= Ye(lad2+1);
 	    SubXe(6,3)=Xe(lad2+2);      SubYe(6,3)= Ye(lad2+2);
-	
 
 c	% == Tipo 41
 	    case(41)
@@ -2127,20 +2077,17 @@ c	% == Tipo 41
 	    yl2=ElemGGe(8);
 
 
-c		comp=
-    
-c	    if ((XG.eq.xl).and.(YG.eq.yl)) then  !!!!!!!!!!reales
 		  if ((abs(XG-xl).lt.tol).and.(abs(YG-yl).lt.tol)) then
 		    lads=lad;
 		    xls=xl2;
 		    yls=yl2;
 		  elseif ((abs(XG-xl2).lt.tol).and.(abs(YG-yl2).lt.tol)) then
-c	    elseif ((XG.eq.xl2).and.(YG .eq.yl2)) then !!!!!!!!!!reales
+
 		    lads=lad2;
 		    xls=xl;
 		    yls=yl;
 	    else
-	      write(dfich2,*) '*ERROR* The element ',n,' type ',tipo,
+	      write(*,*) '*ERROR* The element ',n,' type ',tipo,
      &                   ' not been able subdivided into subelem'
 	      stop
 	    end if   
@@ -2224,11 +2171,11 @@ c	% === Tipo 51
 	    SubXe= 0;
 	    SubYe= 0;
 
-c		comp=((abs(XG-xl).lt.tol).and.(abs(YG-yl).lt.tol))
-		
-	    if ((XG.eq.xl).and.(YG.eq.yl))  then !Lado con fin de grieta
 
-c		if(comp) then
+		
+	    if ((XG.eq.xl).and.(YG.eq.yl))  then !Side to crack
+
+
 
 		  lads=lad;
 		  			
@@ -2249,8 +2196,8 @@ c		if(comp) then
 		  SubXe(4,2)=Xe(lads+3);      SubYe(4,2)= Ye(lads+3);
 		  SubXe(4,3)=Xe(lads+4);      SubYe(4,3)= Ye(lads+4);
     
-      elseif ((XG.eq.xl2).and.(YG.eq.yl2))  then !!!!!reales
-c	    elseif ((abs(XG-xl2).lt.tol).and.(abs(YG-yl2).lt.tol))then 
+      elseif ((XG.eq.xl2).and.(YG.eq.yl2))  then !!!!!real
+
  
 		  lads=lad2;
 		  SubXe(1,1)=XG;              SubYe(1,1)= YG;
@@ -2269,8 +2216,8 @@ c	    elseif ((abs(XG-xl2).lt.tol).and.(abs(YG-yl2).lt.tol))then
 		  SubXe(4,2)=xl;              SubYe(4,2)= yl;
 		  SubXe(4,3)=Xe(lads+4);      SubYe(4,3)= Ye(lads+4);
       else
-	      write(dfich2,*) '*ERROR* El elemento ',n,' de tipo ',tipo,
-     &                   ' no ha podido subdividirse en subelem.f'
+	      write(*,*) '*ERROR* The element ',n,' type ',tipo,
+     &                   ' not been able subdivided into subelem'
 	      stop
 	    end if
     
@@ -2286,8 +2233,8 @@ c    	% == Tipo 80
      	end do
 	    if (n1.eq.0) then
 	 
-	      write(dfich2,*) '*ERROR* El elemento ',n,' de tipo ',tipo,
-     &                   ' no ha podido subdividirse en subelem.f'
+	      write(*,*) '*ERROR* The element ',n,' type ',tipo,
+     &                   ' not been able subdivided into subelem'
 	    stop
 	    endif
 	    NumSub= 2;  
@@ -2325,7 +2272,7 @@ C Yes
 c-----[--.----+----.----+----.-----------------------------------------]
 
 c     Purpose: Calculate the local coordinates in the element gauss points 
-c				from its global coordinates
+c				from its global coordinates in 4 node element
 c     --------------------------------------
 
 c      Inputs:
@@ -2344,9 +2291,6 @@ c-----[--.----+----.----+----.-----------------------------------------]
 
       implicit  none
 
-
-      integer dfich,dfich2   
-      common /debugfich/ dfich,dfich2
 
 
 
@@ -2400,7 +2344,7 @@ c	Iteratively calculates the local coordinates of point
 	    end do
 
       if (error.gt.eps) then
-	    write(dfich2,*) ' *WARNING* No convergence in INVCUAD4'
+	    write(*,*) ' *WARNING* No convergence in INVCUAD4'
 	    stop
 	    endif
 
@@ -2436,8 +2380,6 @@ c                    changed
 c-----[--.----+----.----+----.-----------------------------------------]
       implicit  none
 
-      integer dfich,dfich2   
-      common /debugfich/ dfich,dfich2
 
 
       integer   i,j,n,ndm,nmax
@@ -2466,8 +2408,7 @@ c-----[--.----+----.----+----.-----------------------------------------]
           end do ! i
           a(n,n) = d
         else
-c          write(dfich2,*) ' *WARNING* Zero pivot in INVERTEUG'
-c          write(dfich2,*) ' Utilizo la otra rutina para invertir'
+
         flag=.true. 
         exit         
         endif
@@ -2499,13 +2440,11 @@ C       Routine searches for number of nodes involved ( connectivity )
 c       Then searching for what each of those nodes of the element has in
 c       TypeX and keeps them in TypeXe
 
-c       OUTPUTS: ix  :  connectivity (no. of element nodes )
+c       OUTPUTS: ix  :  connectivity (number of element nodes )
 c                TypeXe  : TypeX for each node element
 
 
 CCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCC
-      integer dfich,dfich2   
-      common /debugfich/ dfich,dfich2
 
       character*256 OUTDIR
 	    integer LENOUTDIR,i,j,k
@@ -2513,7 +2452,7 @@ CCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCC
 	    integer TypeXe(NNODE)
  
       integer ne,nn(NNODE),ix(NNODE)
-C	    character*1 basu !to remove the commas connectivity
+
       
 
 CCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCC
@@ -2525,7 +2464,7 @@ CCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCC
 	    do i=1,NelmX
 	    READ(68,*) numelem,(valores(j),j=1,NNODE)
 	    READ(69,*) ne,nn(1),nn(2),nn(3),nn(4)
-C	    READ(69,1000) ne,basu,nn(1),basu,nn(2),basu,nn(3),basu,nn(4)
+
 	    if (numelem.eq.JELEM) then
             do k=1,NNODE
 	          TypeXe(k)=valores(k)
@@ -2539,11 +2478,6 @@ C	    READ(69,1000) ne,basu,nn(1),basu,nn(2),basu,nn(3),basu,nn(4)
 	    CLOSE(68)
      	CLOSE(69)
 
-
-c	write(dfich2,*) (TypeXe(k),k=1,NNODE)
-c	write(dfich2,*) (ix(k),k=1,NNODE)
-
-C 1000  format(I6,A1,I6,A1,I6,A1,I6,A1,I6)
 
 	    RETURN
 
@@ -2572,7 +2506,7 @@ C Yes
 	    INTEGER NDOFEL,NNODE,dimens,MCRD,PSS,NnodX,gint,flag,pos
 	    INTEGER l,i,j,kk,TypeXe(NNODE),ix(NNODE)
 
-        REAL*8 E,Nu,Dist(NnodX,3),sg(3,*)
+        REAL*8 E,Nu,Dist(NnodX,2),sg(3,*)
 	    REAL*8 AMATRX(NDOFEL,NDOFEL),XYC0(2),XYCPrev(2)
         REAL*8 Xe(2*NNODE),Ye(2*NNODE),COORDS(MCRD,NNODE),xl(dimens,NNODE)
 	    REAL*8 xsj(gint),shp(3,4)
@@ -2598,7 +2532,6 @@ c
 
 
 
-C 23456789012345678901234567890123456789012345678901234567890123456789012
 
 c	initialize AMATRX and logical variables
       CALL initializeM(AMATRX,NDOFEL,NDOFEL)          
@@ -2629,7 +2562,9 @@ c     Numerical integration loop over gint integration points
       DO l = 1,gint
 
 c		Compute shape functions, derivatives and jacobian at integration point
-      CALL shapef2D(sg(1,l),xl,shp,xsj(l),dimens,NNODE,ix,.false.)
+      CALL shapef2D(sg(1:2,l),xl,shp,xsj(l),dimens,NNODE,ix,.false.) 
+c      !!!!!!!!!! originally is sg(1,l) , and the result is correct too,
+C      !!!!!!!!!! I don't know why.
 		  IF (flag.eq.1) THEN !Element is subdivided for integration
           xsj(l) = sg(3,l) !The integration weight includes the jacobian
 		  ELSE !Element is not subdivided. Standard integration
@@ -2742,8 +2677,6 @@ c         xsj       - Jacobian determinant at point
 c-----[--.----+----.----+----.-----------------------------------------]
       implicit  none
 
-      integer dfich,dfich2   
-      common /debugfich/ dfich,dfich2
 
 
 
@@ -2764,9 +2697,6 @@ c        OJO  Comento las rutinas que no vamos a usar
 ccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
 ccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
 
-c      write(dfich2,*) ' ********************* '
-c      write(dfich2,*) ((xl(i,j),j=1,nel),i=1,ndm)
-c      write(dfich2,*) ' ********************* '
 
 
 
@@ -2776,11 +2706,11 @@ c     Form 4-node quadrilateral shape functions
          call shapef(ss(1),ss(2),xl,shp,xsj,ndm,flg)
       elseif(nel.eq.16) then
 c        call shp2dc(ss,xl,shp,temp,xsj,1, flg)
-         write(dfich2,*) '**ERROR** Comentada la rutina en shapef2D.f'
+         write(*,*) '**ERROR** Commented the routine shapef2D.f'
          stop
       elseif(nel.eq.12) then
-c        call shp2ds(ss,xl,shp,temp,xsj,1, flg)
-         write(dfich2,*) '**ERROR** Comentada la rutina en shapef2D.f'
+
+         write(*,*) '**ERROR** Commented the routine shapef2D.f'
          stop
       else
         do i = 1,4
@@ -2800,8 +2730,8 @@ c       Form triangle by adding third and fourth together
 c       Add quadratic terms if necessary
 
         if(nel.gt.4) then
-c          call shap2(ss(1),ss(2),shp,ix,nel)
-           write(dfich2,*) '**ERROR** Comentada la rutina en shapef2D.f'
+
+           write(*,*) '**ERROR** Commented the routine shapef2D.f'
            stop
         endif 
 	   
@@ -3005,9 +2935,6 @@ c-----[--.----+----.----+----.-----------------------------------------]
 
 
 
-c      integer dfich,dfich2   
-c      common /debugfich/ dfich,dfich2
-
 
 
 	    integer	i,j,k
@@ -3103,8 +3030,6 @@ c	   --- polar coordinates of crack tip
 	      betta= atan2(Y-XYC0(2),X-XYC0(1))
 
 
-C      write(dfich2,*) 'Angulo theta=',theta
-C      write(dfich2,*) 'Angulo beta=',betta
 
 c       --- Derived coordinate crack tip
 	      dthx=-(Y-XYC0(2))/r2
@@ -3162,7 +3087,7 @@ c              formed at the point x .
 c     --------------------------------------
 
 c      Inputs:
-c			Dist(n,3) = Dist(nel,3)	Distance matrix of nodes to crack
+c			Dist(n,2) = Dist(nel,2)	Distance matrix of nodes to crack
 c			ix(*) = ix(nel)		Connectivity element
 c			shp(3,nel)	Shape functions and their derivatives at the point
 
@@ -3173,11 +3098,9 @@ c-----[--.----+----.----+----.-----------------------------------------]
 
       implicit  none
 
-c      integer dfich,dfich2   
-c      common /debugfich/ dfich,dfich2
 	
 	    integer i,nel,ix(nel),j,NnodX
-	    real*8  VDist(4),Dist(NnodX,3),DisPG,shp(3,nel),H,Hnode(4)
+	    real*8  VDist(4),Dist(NnodX,2),DisPG,shp(3,nel),H,Hnode(4)
 	
 c	Distances element nodes to crack extracted from the matrix [ Dist ]
 	    do i=1,4
@@ -3195,7 +3118,6 @@ c	Projecting distance nodes to the point x
 c	Heaviside function at the point. 
 c		(Unitary and equal to the distance x sign evaluated)
 	    H=sign(1.0d0,DisPG)
-c      write(dfich2,*) 'Heaviside H=',H
 
 c	For Heaviside function at the nodes of the element ( Eugene)
 c   and to have physical GDL in the first two GDL .
@@ -3204,7 +3126,6 @@ c   ( Unitary and equal to the distance evaluated sign x )
 	    Hnode(i)=sign(1.0d0,VDist(i))
       end do
 
-c      write(dfich2,*) 'Heaviside en nodos Hnode=',(Hnode(i),i=1,4)
 
       return
 	    end
@@ -3233,8 +3154,7 @@ C      dNi/dx, dNi/dy, global coordinates of integration points.
 	    REAL*8  SVARS(NSVARS), U(Dof),BatG(3*gint,Dof),DBatG(3*gint,Dof)
       REAL*8  JatG(gint),B(3,Dof),DB(3,Dof),Bdvdx(3,Dof),Bdudy(3,Dof)
       REAL*8  EPS(3),SIG(3),W,dvdx(3),dudy(3),JAC,xypg(2,mpg)
-
-C 23456789012345678901234567890123456789012345678901234567890123456789012   
+  
 
 C     First value stored in SVARS is the total number of integration points
 C     of the enriched element 

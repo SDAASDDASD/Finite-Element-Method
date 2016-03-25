@@ -83,26 +83,11 @@ for kk = 1:size(xCr,2)                                                       % ¶
             xVertex(iel,:) = xCr_element(iel,:);                          %µ¥ÔªÄÚÁÑÎÆ¶¥µã×ø±ê
         end
         if (intes == 1)                                                                %ÁÑ¼âµ¥Ôª
-            sides = 1;
-            crk_int = [];
             type_elem(iel,kk) = 2;
             xTip(iel,:) = xCr_element(iel,:);                                %ÁÑ¼âµã×ø±ê
-            for kj = 1:size(xCr(kk).coor,1)-1                               % ¶ÔÁÑÎÆÏß¶ÎÑ­»·
-            q1 = xCr(kk).coor(kj,:); q2 = xCr(kk).coor(kj+1,:);     % ÁÑÎÆÏß¶ÎµÄÁ½¸ö¶Ëµã×ø±ê
-            sctrl = [sctr sctr(1,1)];
-            for iedge = 1:size(sctr,2)                                            % ¶Ôµ¥Ôª±ß½çÑ­»·
-                nnode1 = sctrl(iedge); nnode2 = sctrl(iedge+1);  % µ¥Ôª±ß½çÉÏµÄÁ½¸ö½áµãºÅ
-                p1 = node(nnode1,2:3); p2 = node(nnode2,2:3);          % µ¥Ôª±ß½çÉÏµÄÁ½¸ö½áµã×ø±ê
-                intersect = segments_int_2d(p1,p2,q1,q2);          % ¼ÆËãÁ½¸öÏß¶ÎµÄ½»µã
-                if intersect(2) ~= 0
-                crk_int = [crk_int intersect(2) intersect(3)];
-                intersec_sides(iel,sides) = iedge;
-                intersec_sides(iel,(2*sides+1):(2*sides+2)) = intersect(2:3);
-                sides = sides + 1;
-                end
-            end
-            end
-            elem_crk(iel,:) = crk_int;
+            
+            elem_crk(iel,:) = [crk_int xTip(iel,1) xTip(iel,2)];
+            intersec_sides(iel,5:6) = xTip(iel,:);
        end
    end
 end

@@ -57,7 +57,7 @@ TEMPLATE FOR X-FEM WITH ABAQUS
 **   7th Parameter: Dimension of the physical domain of the problem: 2=2D
 **
 *Uel property, elset=ELEMTOPXU12
-1.0e3, 0.333,1,5,7,2,2
+1.0e3, 0.333,1,5,7,4,2
 **
 *Boundary, OP=MOD
 _PickedSet9, 1,2 , 0.0
